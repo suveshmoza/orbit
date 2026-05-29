@@ -52,14 +52,14 @@ func main() {
 	}
 
 	leaderboard := make(map[string]time.Duration)
-
+	domains := cfg.Config.TestDomains
 	for _, server := range cfg.DNSServers {
 
 		client := dns.NewClient()
 		results := make([]time.Duration, 0)
 
-		for range 10 {
-			msg := dns.NewMsg("google.com", dns.TypeA)
+		for _, domain := range domains {
+			msg := dns.NewMsg(domain, dns.TypeA)
 			addr := net.JoinHostPort(server.Address, strconv.Itoa(server.Port))
 
 			_, rtt, err := client.Exchange(context.Background(), msg, "udp", addr)
