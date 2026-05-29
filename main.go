@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -43,6 +44,45 @@ func loadConfig(path string) (ConfigFile, error) {
 	return cfg, nil
 }
 
+type ResultStats struct {
+	Mean   time.Duration
+	Median time.Duration
+	Lowest time.Duration
+}
+
+func generateResultStats(results []time.Duration) ResultStats {
+	if len(results) == 0 {
+		return ResultStats{}
+	}
+
+	var sum time.Duration
+	lowest := results[0]
+	for _, r := range results {
+		sum += r
+		if r < lowest {
+			lowest = r
+		}
+	}
+	mean := sum / time.Duration(len(results))
+
+	sorted := slices.Clone(results)
+	slices.Sort(sorted)
+
+	n := len(sorted)
+	var median time.Duration
+	if n%2 == 1 {
+		median = sorted[n/2]
+	} else {
+		median = (sorted[n/2-1] + sorted[n/2]) / 2
+	}
+
+	return ResultStats{
+		Mean:   mean,
+		Median: median,
+		Lowest: lowest,
+	}
+}
+
 func main() {
 
 	cfg, err := loadConfig("config.json")
@@ -51,7 +91,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	leaderboard := make(map[string]time.Duration)
+	stats := make(map[string][]time.Duration)
 	domains := cfg.Config.TestDomains
 	for _, server := range cfg.DNSServers {
 
@@ -70,16 +110,12 @@ func main() {
 
 			results = append(results, rtt)
 		}
-
-		var avg time.Duration
-		for _, result := range results {
-			avg += result
-		}
-		avg /= time.Duration(len(results))
-		leaderboard[server.Name] = avg
-
+		stats[server.Name] = results
 	}
 
-	fmt.Println(leaderboard)
+	for server, results := range stats {
+		s := generateResultStats(results)
+		fmt.Printf("Server [%s] Mean: [%v], Median: [%v], Lowest: [%v]\n", server, s.Mean, s.Median, s.Lowest)
+	}
 
 }
