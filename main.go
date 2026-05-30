@@ -93,29 +93,32 @@ func main() {
 
 	stats := make(map[string][]time.Duration)
 	domains := cfg.Config.TestDomains
-	for _, server := range cfg.DNSServers {
 
+	for _, server := range cfg.DNSServers {
 		client := dns.NewClient()
-		results := make([]time.Duration, 0)
+
+		addr := net.JoinHostPort(server.Address, strconv.Itoa(server.Port))
+		results := make([]time.Duration, 0, len(domains)*cfg.Config.Samples)
 
 		for _, domain := range domains {
-			msg := dns.NewMsg(domain, dns.TypeA)
-			addr := net.JoinHostPort(server.Address, strconv.Itoa(server.Port))
+			for range cfg.Config.Samples {
+				msg := dns.NewMsg(domain, dns.TypeA)
 
-			_, rtt, err := client.Exchange(context.Background(), msg, "udp", addr)
-			if err != nil {
-				fmt.Printf("Error exchanging: %v\n", err)
-				os.Exit(1)
+				_, rtt, err := client.Exchange(context.Background(), msg, "udp", addr)
+				if err != nil {
+					fmt.Printf("Error exchanging %s via %s: %v\n", domain, server.Name, err)
+					os.Exit(1)
+				}
+
+				results = append(results, rtt)
 			}
-
-			results = append(results, rtt)
 		}
 		stats[server.Name] = results
 	}
 
 	for server, results := range stats {
 		s := generateResultStats(results)
-		fmt.Printf("Server [%s] Mean: [%v], Median: [%v], Lowest: [%v]\n", server, s.Mean, s.Median, s.Lowest)
+		fmt.Printf("%s Mean: [%v], Median: [%v], Lowest: [%v]\n", server, s.Mean, s.Median, s.Lowest)
 	}
 
 }
