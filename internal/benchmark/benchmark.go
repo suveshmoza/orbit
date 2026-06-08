@@ -2,38 +2,86 @@ package benchmark
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"codeberg.org/miekg/dns"
 	"github.com/suveshmoza/orbit/internal/config"
 )
 
-func Run(ctx context.Context, cfg config.ConfigFile) (map[string][]time.Duration, error) {
-	stats := make(map[string][]time.Duration)
+type ServerResult struct {
+	RTTs     []time.Duration
+	Passed   int
+	Failed   int
+	Expected int
+}
+
+func RunStreaming(ctx context.Context, cfg config.ConfigFile, events chan<- Event) {
+	client := dns.NewClient()
 	domains := cfg.Config.TestDomains
+	samples := cfg.Config.Samples
+	timeoutMs := cfg.Config.TimeoutMs
+
+	var wg sync.WaitGroup
 
 	for _, server := range cfg.DNSServers {
-		client := dns.NewClient()
-
-		addr := net.JoinHostPort(server.Address, strconv.Itoa(server.Port))
-		results := make([]time.Duration, 0, len(domains)*cfg.Config.Samples)
-
-		for _, domain := range domains {
-			for range cfg.Config.Samples {
-				msg := dns.NewMsg(domain, dns.TypeA)
-
-				_, rtt, err := client.Exchange(ctx, msg, "udp", addr)
-				if err != nil {
-					return nil, fmt.Errorf("error exchanging %s via %s: %w", domain, server.Name, err)
-				}
-
-				results = append(results, rtt)
-			}
-		}
-		stats[server.Name] = results
+		wg.Add(1)
+		go func(server config.Server) {
+			defer wg.Done()
+			runServer(ctx, client, server, domains, samples, timeoutMs, func(e Event) {
+				sendEvent(ctx, events, e)
+			})
+		}(server)
 	}
-	return stats, nil
+
+	wg.Wait()
+}
+
+func sendEvent(ctx context.Context, events chan<- Event, e Event) {
+	select {
+	case events <- e:
+	case <-ctx.Done():
+	}
+}
+
+func runServer(
+	ctx context.Context,
+	client *dns.Client,
+	server config.Server,
+	domains []string,
+	samples int,
+	timeoutMs int,
+	report func(Event),
+) {
+	addr := net.JoinHostPort(server.Address, strconv.Itoa(server.Port))
+
+	for _, domain := range domains {
+		for s := range samples {
+			if ctx.Err() != nil {
+				return
+			}
+
+			qctx := ctx
+			var cancel context.CancelFunc
+			if timeoutMs > 0 {
+				qctx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+			}
+
+			msg := dns.NewMsg(domain, dns.TypeA)
+			_, rtt, err := client.Exchange(qctx, msg, "udp", addr)
+			if cancel != nil {
+				cancel()
+			}
+
+			report(Event{
+				Server: server.Name,
+				Domain: domain,
+				Sample: s + 1,
+				RTT:    rtt,
+				Err:    err,
+			})
+		}
+	}
 }
