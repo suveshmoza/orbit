@@ -1,7 +1,6 @@
 package benchmark
 
 import (
-	"fmt"
 	"slices"
 	"time"
 )
@@ -42,12 +41,5 @@ func Compute(results []time.Duration) ResultStats {
 		Mean:   mean,
 		Median: median,
 		Lowest: lowest,
-	}
-}
-
-func PrintStats(stats map[string][]time.Duration) {
-	for server, results := range stats {
-		s := Compute(results)
-		fmt.Printf("%s Mean: [%v], Median: [%v], Lowest: [%v]\n", server, s.Mean, s.Median, s.Lowest)
 	}
 }
