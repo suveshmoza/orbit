@@ -1,14 +1,18 @@
 {
     "config": {
-        "samples": 10,
+        "samples": 5,
         "timeout_ms": 2000,
         "test_domains": [
-            "google.com",
-            "youtube.com",
+            "www.google.com",
+            "www.youtube.com",
             "facebook.com",
             "twitter.com",
             "instagram.com",
-            "reddit.com"
+            "www.reddit.com",
+            "amazon.com",
+            "wikipedia.org",
+            "gmail.com",
+            "whatsapp.com"
         ]
     },
     "servers": [
