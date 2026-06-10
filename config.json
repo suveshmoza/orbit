@@ -4,15 +4,25 @@
         "timeout_ms": 2000,
         "test_domains": [
             "www.google.com",
+            "mail.google.com",
+            "accounts.google.com",
             "www.youtube.com",
-            "facebook.com",
-            "twitter.com",
-            "instagram.com",
+            "m.youtube.com",
+            "www.amazon.com",
+            "github.com",
             "www.reddit.com",
-            "amazon.com",
-            "wikipedia.org",
-            "gmail.com",
-            "whatsapp.com"
+            "www.facebook.com",
+            "m.facebook.com",
+            "www.instagram.com",
+            "www.linkedin.com",
+            "stackoverflow.com",
+            "discord.com",
+            "web.telegram.org",
+            "chat.com",
+            "www.netflix.com",
+            "www.twitch.tv",
+            "en.wikipedia.org",
+            "www.apple.com"
         ]
     },
     "servers": [
